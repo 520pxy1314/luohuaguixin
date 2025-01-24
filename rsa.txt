@@ -1,0 +1,109 @@
+from cryptography.hazmat.primitives.asymmetric import rsa, padding
+from cryptography.hazmat.primitives import hashes, serialization
+from cryptography.hazmat.primitives.serialization import load_pem_private_key, load_pem_public_key
+import os
+
+# 生成RSA密钥对
+def generate_rsa_keys(key_size=2048, public_exponent=65537):
+    private_key = rsa.generate_private_key(
+        public_exponent=public_exponent,
+        key_size=key_size
+    )
+    public_key = private_key.public_key()
+    return private_key, public_key
+
+# 保存密钥到指定路径
+def save_keys(private_key, public_key, private_key_path, public_key_path):
+    # 保存私钥
+    with open(private_key_path, "wb") as f:
+        f.write(private_key.private_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PrivateFormat.PKCS8,
+            encryption_algorithm=serialization.NoEncryption()
+        ))
+    print(f"私钥已保存到: {private_key_path}")
+
+    # 保存公钥
+    with open(public_key_path, "wb") as f:
+        f.write(public_key.public_bytes(
+            encoding=serialization.Encoding.PEM,
+            format=serialization.PublicFormat.SubjectPublicKeyInfo
+        ))
+    print(f"公钥已保存到: {public_key_path}")
+
+# 加密数据并保存到指定路径
+def encrypt_message(message, public_key_path, encrypted_message_path):
+    # 加载公钥
+    with open(public_key_path, "rb") as f:
+        public_key = load_pem_public_key(f.read())
+
+    # 加密消息
+    encrypted_message = public_key.encrypt(
+        message.encode(),
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    )
+
+    # 保存加密消息
+    with open(encrypted_message_path, "wb") as f:
+        f.write(encrypted_message)
+    print(f"加密后的消息已保存到: {encrypted_message_path}")
+
+# 解密数据
+def decrypt_message(encrypted_message_path, private_key_path):
+    # 加载私钥
+    with open(private_key_path, "rb") as f:
+        private_key = load_pem_private_key(f.read(), password=None)
+
+    # 读取加密消息
+    with open(encrypted_message_path, "rb") as f:
+        encrypted_message = f.read()
+
+    # 解密消息
+    decrypted_message = private_key.decrypt(
+        encrypted_message,
+        padding.OAEP(
+            mgf=padding.MGF1(algorithm=hashes.SHA256()),
+            algorithm=hashes.SHA256(),
+            label=None
+        )
+    ).decode()
+
+    print(f"解密后的消息: {decrypted_message}")
+
+# 主程序
+def main():
+    print("欢迎使用RSA加密和解密工具！")
+    print("1. 生成密钥对")
+    print("2. 加密消息")
+    print("3. 解密消息")
+    print("4. 退出")
+
+    while True:
+        choice = input("请选择操作 (1/2/3/4): ")
+        if choice == "1":
+            print("正在生成RSA密钥对...")
+            private_key, public_key = generate_rsa_keys()
+            private_key_path = input("请输入私钥保存路径（例如：private_key.pem）: ").strip()
+            public_key_path = input("请输入公钥保存路径（例如：public_key.pem）: ").strip()
+            save_keys(private_key, public_key, private_key_path, public_key_path)
+        elif choice == "2":
+            message = input("请输入要加密的消息: ")
+            public_key_path = input("请输入公钥路径（例如：public_key.pem）: ").strip()
+            encrypted_message_path = input("请输入加密数据保存路径（例如：encrypted_message.bin）: ").strip()
+            encrypt_message(message, public_key_path, encrypted_message_path)
+        elif choice == "3":
+            private_key_path = input("请输入私钥路径（例如：private_key.pem）: ").strip()
+            encrypted_message_path = input("请输入加密数据路径（例如：encrypted_message.bin）: ").strip()
+            decrypt_message(encrypted_message_path, private_key_path)
+        elif choice == "4":
+            print("退出程序。")
+            break
+        else:
+            print("无效的选择，请重新输入！")
+
+if __name__ == "__main__":
+    main()
